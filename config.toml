@@ -1,0 +1,12 @@
+[general]
+start_date = '2021-10-01'
+end_date = '2021-10-30'
+delete_dump_file_after_done = false
+
+[export]
+json_path = 'issue_count_result.json'
+
+[puppet_spreadsheet]
+oauth_cred_path = ''
+spreadsheet_id = 'abcdxyzt'
+range = 'Puppets!A3:B'
