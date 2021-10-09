@@ -82,9 +82,9 @@ def get_puppets_from_sheet(sheet_resource, spreadsheet_id: str, sheet_range: str
         dict: Puppets as keys and their owner
     """
 
-    result = sheet_resource.get(spreadsheetId=spreadsheet_id, range=sheet_range).execute()
-    puppets = dict(result.get('values', []))
-    return {canonical_nation_name(k): canonical_nation_name(v) for k, v in puppets.items()}
+    resp = sheet_resource.get(spreadsheetId=spreadsheet_id, range=sheet_range).execute()
+    rows = resp.get('values', [])
+    return {canonical_nation_name(row[0]): canonical_nation_name(row[1]) for row in rows}
 
 
 def download_nation_dump(dump_date: str, dump_filename: str) -> None:
@@ -120,19 +120,19 @@ def download_nation_dump_if_not_exists(dump_date: str) -> str:
     return dump_filename
 
 
-def get_puppet_issue_counts(dump_name: str, puppets: dict) -> dict:
+def get_puppet_issue_counts(dump_file, puppets: dict) -> dict:
     """Get answered issue counts since founding  (ISSUE_ANSWERED tag)
     of puppets from nation data dump.
 
     Args:
-        dump_name (str): Dump filename
+        dump_file (file-like object): Dump file object
         puppets (dict): Puppets
 
     Returns:
         dict: Issue count keyed by puppet name
     """
 
-    dump_file = gzip.open(dump_name)
+    dump_file = gzip.open(dump_file)
     puppet_issue_counts = {}
     for event, elem in ElementTree.iterparse(dump_file):
         if event == 'end' and elem.tag == 'NATION':
@@ -141,6 +141,11 @@ def get_puppet_issue_counts(dump_name: str, puppets: dict) -> dict:
                 issue_count = int(elem.find('ISSUES_ANSWERED').text)
                 puppet_issue_counts[nation_name] = issue_count
     return puppet_issue_counts
+
+
+def get_puppet_issue_counts_from_gzip(filename, puppets):
+    dump_file = gzip.open(filename)
+    return get_puppet_issue_counts(dump_file, puppets)
 
 
 def get_leaderboard(puppets, start_date_issue_counts, end_date_issue_counts) -> dict:
@@ -159,8 +164,18 @@ def get_leaderboard(puppets, start_date_issue_counts, end_date_issue_counts) -> 
     for puppet_name, owner_name in puppets.items():
         if owner_name not in leaderboard:
             leaderboard[owner_name] = 0
-        leaderboard[owner_name] += end_date_issue_counts[puppet_name] - start_date_issue_counts[puppet_name]
-    return dict(sorted(leaderboard.items(), key=lambda item: item[1]))
+
+        if puppet_name not in end_date_issue_counts:
+            continue
+        end_date_count = end_date_issue_counts[puppet_name]
+
+        if puppet_name not in start_date_issue_counts:
+            leaderboard[owner_name] += end_date_count
+        else:
+            start_date_count = start_date_issue_counts[puppet_name]
+            leaderboard[owner_name] += end_date_count - start_date_count
+
+    return dict(sorted(leaderboard.items(), key=lambda item: item[1], reverse=True))
 
 
 def export_to_json(issue_leaderboard: dict, file_path: str) -> None:
@@ -191,9 +206,12 @@ def main():
         exit(-1)
 
     puppets = get_puppets_from_sheet(sheet_service, sheet_config['spreadsheet_id'], sheet_config['range'])
+    if not puppets:
+        logger.warning('No puppets were found')
+        exit(-1)
 
-    start_date_issue_counts = get_puppet_issue_counts(start_date_dump_name, puppets)
-    end_date_issue_counts = get_puppet_issue_counts(end_date_dump_name, puppets)
+    start_date_issue_counts = get_puppet_issue_counts_from_gzip(start_date_dump_name, puppets)
+    end_date_issue_counts = get_puppet_issue_counts_from_gzip(end_date_dump_name, puppets)
 
     leaderboard = get_leaderboard(puppets, start_date_issue_counts, end_date_issue_counts)
 
