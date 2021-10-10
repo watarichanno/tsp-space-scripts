@@ -75,3 +75,53 @@ class TestGetLeaderboard:
                                                    end_date_issue_counts)
 
         assert result == {'owner 1': 10, 'owner 2': 5}
+
+
+class TestGetPuppetIssueCounts:
+    def test_counts_issues_of_puppet_of_a_member(self, tmp_path):
+        xml = """<NATIONS><NATION>
+                 <NAME>Puppet 1</NAME>
+                 <ISSUES_ANSWERED>5</ISSUES_ANSWERED>
+                 </NATION></NATIONS>"""
+        xml_path = tmp_path / 'xml_test.xml'
+        xml_path.write_text(xml)
+        puppets = {'puppet 1': 'owner 1'}
+
+        result = issue_leaderboard.get_puppet_issue_counts(xml_path, puppets)
+
+        assert result == {'puppet 1': 5}
+
+    def test_skips_puppet_not_of_a_member(self, tmp_path):
+        xml = """<NATIONS><NATION>
+                 <NAME>Puppet 1</NAME>
+                 <ISSUES_ANSWERED>5</ISSUES_ANSWERED>
+                 </NATION></NATIONS>"""
+        xml_path = tmp_path / 'xml_test.xml'
+        xml_path.write_text(xml)
+        puppets = {}
+
+        result = issue_leaderboard.get_puppet_issue_counts(xml_path, puppets)
+
+        assert result == {}
+
+    def test_counts_issues_of_many_puppets_of_many_members(self, tmp_path):
+        xml = """<NATIONS><NATION>
+                 <NAME>Puppet 1</NAME>
+                 <ISSUES_ANSWERED>1</ISSUES_ANSWERED>
+                 </NATION>
+                 <NATION>
+                 <NAME>Puppet 2</NAME>
+                 <ISSUES_ANSWERED>2</ISSUES_ANSWERED>
+                 </NATION>
+                 <NATION>
+                 <NAME>Puppet 3</NAME>
+                 <ISSUES_ANSWERED>3</ISSUES_ANSWERED>
+                 </NATION></NATIONS>"""
+
+        xml_path = tmp_path / 'xml_test.xml'
+        xml_path.write_text(xml)
+        puppets = {'puppet 1': 'owner1', 'puppet 2': 'owner 1', 'puppet 3': 'owner 2'}
+
+        result = issue_leaderboard.get_puppet_issue_counts(xml_path, puppets)
+
+        assert result == {'puppet 1': 1, 'puppet 2': 2, 'puppet 3': 3}
