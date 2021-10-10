@@ -68,7 +68,7 @@ def get_sheet_service(cred_path: str):
         raise ValueError
 
     service = build('sheets', 'v4', credentials=creds)
-    return service.spreadsheets().values()
+    return service.spreadsheets().values() # pylint: disable=maybe-no-member
 
 
 def get_puppets_from_sheet(sheet_resource, spreadsheet_id: str, sheet_range: str) -> dict:
@@ -132,7 +132,6 @@ def get_puppet_issue_counts(dump_file, puppets: dict) -> dict:
         dict: Issue count keyed by puppet name
     """
 
-    dump_file = gzip.open(dump_file)
     puppet_issue_counts = {}
     for event, elem in ElementTree.iterparse(dump_file):
         if event == 'end' and elem.tag == 'NATION':
@@ -140,6 +139,7 @@ def get_puppet_issue_counts(dump_file, puppets: dict) -> dict:
             if nation_name in puppets:
                 issue_count = int(elem.find('ISSUES_ANSWERED').text)
                 puppet_issue_counts[nation_name] = issue_count
+            elem.clear()
     return puppet_issue_counts
 
 
