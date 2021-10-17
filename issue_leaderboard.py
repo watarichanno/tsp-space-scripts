@@ -1,3 +1,6 @@
+"""A small script to count issues on puppets loaded from a Google spreadsheet.
+"""
+
 import os
 import sys
 import json
@@ -99,11 +102,11 @@ def download_nation_dump(dump_date: str, dump_filename: str) -> None:
 
     url = NATION_DUMP_URL.format(date=dump_date)
 
-    with requests.get(url, stream=True) as r:
-        r.raise_for_status()
-        with open(dump_filename, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
+    with requests.get(url, stream=True) as res:
+        res.raise_for_status()
+        with open(dump_filename, 'wb') as dump:
+            for chunk in res.iter_content(chunk_size=8192):
+                dump.write(chunk)
 
 
 def download_nation_dump_if_not_exists(dump_date: str) -> str:
@@ -146,12 +149,22 @@ def get_puppet_issue_counts(dump_file, puppets: dict) -> dict:
     return puppet_issue_counts
 
 
-def get_puppet_issue_counts_from_gzip(filename, puppets):
+def get_puppet_issue_counts_from_gzip(filename: str, puppets: dict) -> dict:
+    """Get puppet issue count from data dump file.
+
+    Args:
+        filename (str): Data dump file name
+        puppets (dict): Puppets and their owners
+
+    Returns:
+        dict: Issue count keyed by puppet name
+    """
+
     dump_file = gzip.open(filename)
     return get_puppet_issue_counts(dump_file, puppets)
 
 
-def get_leaderboard(puppets, start_date_issue_counts, end_date_issue_counts) -> dict:
+def get_leaderboard(puppets: dict, start_date_issue_counts: dict, end_date_issue_counts: dict) -> dict:
     """Get issue leaderboard of owners.
 
     Args:
@@ -181,12 +194,26 @@ def get_leaderboard(puppets, start_date_issue_counts, end_date_issue_counts) -> 
     return dict(sorted(leaderboard.items(), key=lambda item: item[1], reverse=True))
 
 
-def export_to_json(issue_leaderboard: dict, file_path: str) -> None:
+def export_to_json(issue_leaderboard: dict, file_path: str, parent_key: str = None) -> None:
+    """Export leaderboard result to JSON file.
+
+    Args:
+        issue_leaderboard (dict): Issue counts keyed by owner
+        file_path (str): Path to JSON file
+        parent_key (str): Put the leaderboard result under a key if not None. Defaults to None.
+    """
+
     with open(file_path, 'w') as file_obj:
-        json.dump(issue_leaderboard, file_obj)
+        if parent_key is not None:
+            json.dump({parent_key: issue_leaderboard}, file_obj)
+        else:
+            json.dump(issue_leaderboard, file_obj)
 
 
 def main():
+    """Entry point.
+    """
+
     try:
         config = toml.load(CONFIG_PATH)
     except FileNotFoundError:

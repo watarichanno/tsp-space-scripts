@@ -1,7 +1,4 @@
 from unittest import mock
-from xml.etree import ElementTree
-
-import pytest
 
 import issue_leaderboard
 
