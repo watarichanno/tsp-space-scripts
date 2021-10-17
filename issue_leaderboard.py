@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import logging
 from xml.etree import ElementTree
@@ -19,6 +20,7 @@ NATION_DUMP_URL = 'https://www.nationstates.net/archive/nations/{date}-nations-x
 NATION_DUMP_NAME = '{date}-nations-xml.gz'
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 
 def canonical_nation_name(nation_name: str) -> str:
@@ -115,8 +117,9 @@ def download_nation_dump_if_not_exists(dump_date: str) -> str:
     """
 
     dump_filename = NATION_DUMP_NAME.format(date=dump_date)
-    if not os.path.exists(dump_date):
+    if not os.path.exists(dump_filename):
         download_nation_dump(dump_date, dump_filename)
+        logger.info('Downloaded data dump: %s', dump_filename)
     return dump_filename
 
 
@@ -193,7 +196,9 @@ def main():
     general_config = config['general']
     try:
         start_date_dump_name = download_nation_dump_if_not_exists(general_config['start_date'])
+        logger.info('Got data dump on start date')
         end_date_dump_name = download_nation_dump_if_not_exists(general_config['end_date'])
+        logger.info('Got data dump on end date')
     except requests.HTTPError as err:
         logger.error('Failed to download nation data dump. HTTP error: %s', err.response.status_code)
         exit(-1)
@@ -209,17 +214,21 @@ def main():
     if not puppets:
         logger.warning('No puppets were found')
         exit(-1)
+    logger.info('Fetched puppet data from spreadsheet')
 
     start_date_issue_counts = get_puppet_issue_counts_from_gzip(start_date_dump_name, puppets)
     end_date_issue_counts = get_puppet_issue_counts_from_gzip(end_date_dump_name, puppets)
 
     leaderboard = get_leaderboard(puppets, start_date_issue_counts, end_date_issue_counts)
+    logger.info('Finished counting issues')
 
     export_to_json(leaderboard, config['export']['json_path'])
+    logger.info('Exported to JSON file')
 
     if general_config.get('delete_dump_file_after_done', False):
         os.remove(start_date_dump_name)
         os.remove(end_date_dump_name)
+        logger.info('Removed dump files')
 
 
 if __name__ == '__main__':
