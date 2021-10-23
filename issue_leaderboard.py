@@ -273,7 +273,7 @@ def main():
     if general_config.get('delete_dump_file_after_done', False):
         os.remove(start_date_dump_name)
         os.remove(end_date_dump_name)
-        logger.info('Removed dump files')
+        logger.info('Deleted dump files')
 
 
 if __name__ == '__main__':
