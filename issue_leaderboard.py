@@ -101,7 +101,7 @@ def download_nation_dump(dump_date: str, dump_filename: str) -> None:
     """
 
     url = NATION_DUMP_URL.format(date=dump_date)
-
+    logger.info('Downloading data dump from %s', url)
     with requests.get(url, stream=True) as res:
         res.raise_for_status()
         with open(dump_filename, 'wb') as dump:
@@ -223,11 +223,14 @@ def main():
     general_config = config['general']
     try:
         start_date_dump_name = download_nation_dump_if_not_exists(general_config['start_date'])
-        logger.info('Got data dump on start date')
+        logger.info('Got data dump on start date: "%s"', general_config['start_date'])
         end_date_dump_name = download_nation_dump_if_not_exists(general_config['end_date'])
-        logger.info('Got data dump on end date')
+        logger.info('Got data dump on end date: %s', general_config['end_date'])
     except requests.HTTPError as err:
         logger.error('Failed to download nation data dump. HTTP error: %s', err.response.status_code)
+        exit(-1)
+    except requests.ConnectionError as err:
+        logger.error('Failed to download nation data dump. Network error')
         exit(-1)
 
     sheet_config = config['puppet_spreadsheet']
