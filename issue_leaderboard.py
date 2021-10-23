@@ -224,32 +224,40 @@ def main():
         config = toml.load(CONFIG_PATH)
     except FileNotFoundError:
         logger.error('Config file not found!')
-        exit(-1)
+        exit(1)
 
     general_config = config['general']
+
     try:
-        start_date_dump_name = download_nation_dump_if_not_exists(general_config['start_date'])
-        logger.info('Got data dump on start date: "%s"', general_config['start_date'])
-        end_date_dump_name = download_nation_dump_if_not_exists(general_config['end_date'])
-        logger.info('Got data dump on end date: %s', general_config['end_date'])
+        start_date = datetime.date.fromisoformat(general_config['start_date'])
+        end_date = datetime.date.fromisoformat(general_config['end_date'])
+    except ValueError:
+        logger.error("Date is not in ISO format")
+        exit(1)
+
+    try:
+        start_date_dump_name = download_nation_dump_if_not_exists(start_date)
+        logger.info('Got data dump on start date: %s', start_date)
+        end_date_dump_name = download_nation_dump_if_not_exists(end_date)
+        logger.info('Got data dump on end date: %s', end_date)
     except requests.HTTPError as err:
         logger.error('Failed to download nation data dump. HTTP error: %s', err.response.status_code)
-        exit(-1)
+        exit(1)
     except requests.ConnectionError as err:
         logger.error('Failed to download nation data dump. Network error')
-        exit(-1)
+        exit(1)
 
     sheet_config = config['puppet_spreadsheet']
     try:
         sheet_service = get_sheet_service(sheet_config['oauth_cred_path'])
     except ValueError:
         logger.error('Failed to get credential for Google spreadsheet.')
-        exit(-1)
+        exit(1)
 
     puppets = get_puppets_from_sheet(sheet_service, sheet_config['spreadsheet_id'], sheet_config['range'])
     if not puppets:
         logger.warning('No puppets were found')
-        exit(-1)
+        exit(1)
     logger.info('Fetched puppet data from spreadsheet')
 
     start_date_issue_counts = get_puppet_issue_counts_from_gzip(start_date_dump_name, puppets)
@@ -258,8 +266,9 @@ def main():
     leaderboard = get_leaderboard(puppets, start_date_issue_counts, end_date_issue_counts)
     logger.info('Finished counting issues')
 
-    export_to_json(leaderboard, config['export']['json_path'], config['export']['org_name'], config['export']['key_name'])
-    logger.info('Exported to JSON file')
+    export_config = config['export']
+    export_to_json(leaderboard, export_config['json_path'], export_config['org_name'], export_config['key_name'])
+    logger.info('Exported to JSON file at %s', export_config['json_path'])
 
     if general_config.get('delete_dump_file_after_done', False):
         os.remove(start_date_dump_name)
