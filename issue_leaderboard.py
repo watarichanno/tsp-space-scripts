@@ -194,7 +194,7 @@ def get_leaderboard(puppets: dict, start_date_issue_counts: dict, end_date_issue
     return dict(sorted(leaderboard.items(), key=lambda item: item[1], reverse=True))
 
 
-def export_to_json(issue_leaderboard: dict, file_path: str, parent_key: str = None) -> None:
+def export_to_json(issue_leaderboard: dict, file_path: str, org_name: str = None, key_name: str = None) -> None:
     """Export leaderboard result to JSON file.
 
     Args:
@@ -203,11 +203,15 @@ def export_to_json(issue_leaderboard: dict, file_path: str, parent_key: str = No
         parent_key (str): Put the leaderboard result under a key if not None. Defaults to None.
     """
 
+    result = issue_leaderboard
+
+    if key_name is not None:
+        result = {key_name: result}
+    if org_name is not None:
+        result = {org_name: result}
+
     with open(file_path, 'w') as file_obj:
-        if parent_key is not None:
-            json.dump({parent_key: issue_leaderboard}, file_obj)
-        else:
-            json.dump(issue_leaderboard, file_obj)
+        json.dump(result, file_obj)
 
 
 def main():
@@ -252,7 +256,7 @@ def main():
     leaderboard = get_leaderboard(puppets, start_date_issue_counts, end_date_issue_counts)
     logger.info('Finished counting issues')
 
-    export_to_json(leaderboard, config['export']['json_path'])
+    export_to_json(leaderboard, config['export']['json_path'], config['export']['org_name'], config['export']['key_name'])
     logger.info('Exported to JSON file')
 
     if general_config.get('delete_dump_file_after_done', False):
