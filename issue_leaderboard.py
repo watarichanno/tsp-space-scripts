@@ -1,6 +1,7 @@
 """A small script to count issues on puppets loaded from a Google spreadsheet.
 """
 
+import datetime
 import os
 import sys
 import json
@@ -92,15 +93,15 @@ def get_puppets_from_sheet(sheet_resource, spreadsheet_id: str, sheet_range: str
     return {canonical_nation_name(row[0]): canonical_nation_name(row[1]) for row in rows}
 
 
-def download_nation_dump(dump_date: str, dump_filename: str) -> None:
+def download_nation_dump(dump_date_str: str, dump_filename: str) -> None:
     """Download nation data dump of a specified date.
 
     Args:
-        dump_date (str): Date in ISO format
+        dump_date_str (str): Date in ISO format
         dump_filename (str): Filename to save as
     """
 
-    url = NATION_DUMP_URL.format(date=dump_date)
+    url = NATION_DUMP_URL.format(date=dump_date_str)
     logger.info('Downloading data dump from %s', url)
     with requests.get(url, stream=True) as res:
         res.raise_for_status()
@@ -109,25 +110,26 @@ def download_nation_dump(dump_date: str, dump_filename: str) -> None:
                 dump.write(chunk)
 
 
-def download_nation_dump_if_not_exists(dump_date: str) -> str:
+def download_nation_dump_if_not_exists(dump_date: datetime.date) -> str:
     """Download nation data dump if not exist and return dump filename.
 
     Args:
-        dump_date (str): Date in ISO format
+        dump_date (datetime.date): Date in ISO format
 
     Returns:
         str: Dump filename
     """
 
-    dump_filename = NATION_DUMP_NAME.format(date=dump_date)
+    dump_date_str = dump_date.isoformat()
+    dump_filename = NATION_DUMP_NAME.format(date=dump_date_str)
     if not os.path.exists(dump_filename):
-        download_nation_dump(dump_date, dump_filename)
+        download_nation_dump(dump_date_str, dump_filename)
         logger.info('Downloaded data dump: %s', dump_filename)
     return dump_filename
 
 
 def get_puppet_issue_counts(dump_file, puppets: dict) -> dict:
-    """Get answered issue counts since founding  (ISSUE_ANSWERED tag)
+    """Get answered issue counts since founding (ISSUE_ANSWERED tag)
     of puppets from nation data dump.
 
     Args:
